@@ -236,9 +236,21 @@
       speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(text);
       const voices = speechSynthesis.getVoices() || [];
-      const english = voices.find(v => (v.lang || "").toLowerCase().startsWith("en"));
-      if (english) utter.voice = english;
-      utter.rate = 1.0;
+
+      // Prefer high-quality natural voices (iOS/Mac: Samantha, Karen, etc.)
+      const preferred = voices.find(v =>
+        (v.lang || "").toLowerCase().startsWith("en") &&
+        (v.name.includes("Samantha") || v.name.includes("Karen") || v.name.includes("Premium") || v.name.includes("Enhanced"))
+      );
+
+      // Fallback: any US English voice
+      const usEnglish = voices.find(v => (v.lang || "").toLowerCase().startsWith("en-us"));
+
+      // Last resort: any English voice
+      const anyEnglish = voices.find(v => (v.lang || "").toLowerCase().startsWith("en"));
+
+      utter.voice = preferred || usEnglish || anyEnglish || null;
+      utter.rate = 0.9; // Slightly slower for clarity
       utter.pitch = 1.0;
       speechSynthesis.speak(utter);
     } catch (e) {
