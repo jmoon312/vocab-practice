@@ -252,9 +252,6 @@
   const resultsCard = document.getElementById("resultsCard");
 
   const sheetIdEl = document.getElementById("sheetId");
-  // Pre-fill and auto-load INDEX
-  sheetIdEl.value = HARDCODED_SHEET_ID;
-  loadIndex(HARDCODED_SHEET_ID).catch(() => {});
 
   const kidSelectEl = document.getElementById("kidSelect");
   const weekSelectEl = document.getElementById("weekSelect");
@@ -690,6 +687,19 @@
   answerEl.addEventListener("keydown", (e) => {
     if (e.key === "Enter") submitBtn.click();
   });
+
+  // Bootstrap: hardcode sheet + load INDEX after everything is defined
+document.addEventListener("DOMContentLoaded", () => {
+  sheetIdEl.value = HARDCODED_SHEET_ID;
+
+  loadIndex(HARDCODED_SHEET_ID).catch((e) => {
+    kidSelectEl.innerHTML = `<option value="">INDEX load failed</option>`;
+    weekSelectEl.innerHTML = `<option value="">Check sharing / INDEX</option>`;
+    weekSelectEl.disabled = true;
+    alert("Could not load INDEX: " + e.message);
+  });
+});
+
 </script>
 </body>
 </html>
