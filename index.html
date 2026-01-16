@@ -1,13 +1,762 @@
-<!-- Updated code with HARDCODED default Sheet ID integration and rebuilt populateVoiceSelector() -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>Moon spelling practice</title>
+  <style>
+    :root { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+    body { margin: 0; background: #f6f7fb; color: #111; }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 20px; }
+    .card { background: white; border: 1px solid #e6e8f0; border-radius: 14px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
+    h1 { margin: 0 0 12px; font-size: 22px; }
+    h2 { margin: 0 0 10px; font-size: 18px; }
+    label { display: block; font-weight: 600; margin: 10px 0 6px; }
+    input, select, button {
+      width: 100%; box-sizing: border-box;
+      border: 1px solid #d7daea; border-radius: 12px;
+      padding: 12px 14px; font-size: 18px;
+      background: #fff;
+    }
+    button { font-weight: 700; cursor: pointer; }
+    button.primary { background: #1b4ddb; color: #fff; border-color: #1b4ddb; }
+    button.secondary { background: #fff; }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+    .row { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .muted { color: #5a617a; font-size: 14px; }
+    .pill { display:inline-block; padding: 6px 10px; border-radius: 999px; background: #eef2ff; color:#243b8a; font-weight: 700; font-size: 13px; }
+    .big { font-size: 20px; }
+    .center { text-align: center; }
+    .feedback { margin-top: 10px; padding: 12px; border-radius: 12px; border: 1px solid #e6e8f0; background:#fafbff; }
+    .good { border-color: #bfe8c8; background:#f1fbf3; }
+    .bad { border-color: #f3c2c2; background:#fff4f4; }
+    .hidden { display: none !important; }
+    .btnrow { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .list { margin: 8px 0 0; padding-left: 18px; }
+    .small { font-size: 14px; }
+    .topspace { margin-top: 14px; }
+    code { background: #f1f3fb; padding: 2px 6px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card" id="setupCard">
+      <h1>Moon spelling practice</h1>
+      <div class="muted">
+        Pick a kid, a week (from <b>INDEX</b>), and a mode. Tap <b>Start</b> to unlock audio on iPhone/iPad.
+      </div>
+
+    <!-- Sheet ID hidden for kid mode -->
+    <input id="sheetId" type="hidden" />
+
+
+      <div class="row2">
+        <div>
+          <label>Kid</label>
+          <select id="kidSelect">
+            <option value="">Paste Sheet ID first…</option>
+          </select>
+        </div>
+        <div>
+          <label>Week</label>
+          <select id="weekSelect" disabled>
+            <option value="">Select a kid first…</option>
+          </select>
+          <div class="muted small">Active weeks only, <b>newest first</b>.</div>
+        </div>
+      </div>
+
+      <label>Mode</label>
+      <select id="modeSelect">
+        <option value="quick">Quick Quiz</option>
+        <option value="practice_test">Practice → Test</option>
+        <option value="mastery">Mastery Loop</option>
+      </select>
+
+      <div class="row topspace">
+        <button class="primary big" id="startBtn">Start</button>
+      </div>
+
+      <details class="topspace">
+        <summary class="muted">Optional: Manual tab override (if INDEX won’t load)</summary>
+        <label>Manual tab name</label>
+        <input id="manualTab" placeholder="Exact tab name, e.g., Ella_2026-01-19" />
+        <div class="muted small">If you enter this, it overrides the kid/week dropdowns.</div>
+      </details>
+
+      <details class="topspace">
+        <summary class="muted">Sheet requirements (what tabs do I need?)</summary>
+        <div class="muted small">
+          You need:
+          <ul class="list">
+            <li>An <b>INDEX</b> tab with columns: <code>tab</code>, <code>kid</code>, <code>week_label</code>, <code>week_date</code>, <code>active</code>.</li>
+            <li>One or more vocab tabs named exactly as <code>tab</code> values in INDEX.</li>
+            <li>Each vocab tab needs a header <code>word</code> in A1, then words below it.</li>
+          </ul>
+        </div>
+      </details>
+
+      <details class="topspace">
+        <summary class="muted">Where do I find the Sheet ID?</summary>
+        <div class="muted small">
+          In a Google Sheets URL like:<br/>
+          <code>https://docs.google.com/spreadsheets/d/<b>SHEET_ID</b>/edit</code>
+        </div>
+      </details>
+
+      <details class="topspace">
+        <summary class="muted">Debug: Show available voices</summary>
+        <button id="showVoicesBtn" class="secondary" style="margin-top:8px;">List Voices</button>
+        <div id="voicesList" class="muted small" style="margin-top:8px;"></div>
+      </details>
+    </div>
+
+    <div class="card hidden" id="gameCard">
+      <div class="row">
+        <div class="row2">
+          <div><span class="pill" id="modePill">Mode</span></div>
+          <div class="center muted" id="progressText"></div>
+        </div>
+
+        <div class="btnrow">
+          <button class="secondary big" id="repeatBtn">🔊 Repeat</button>
+          <button class="secondary big" id="skipBtn">Skip</button>
+        </div>
+
+        <label>Type the spelling</label>
+        <input id="answer" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Type here…" />
+
+        <div class="btnrow">
+          <button class="primary big" id="submitBtn">Submit</button>
+          <button class="secondary big" id="endBtn">End</button>
+        </div>
+
+        <div id="feedback" class="feedback hidden"></div>
+      </div>
+    </div>
+
+    <div class="card hidden" id="resultsCard">
+      <h2>Results</h2>
+      <div id="resultsSummary" class="muted"></div>
+      <div id="resultsDetail" class="topspace"></div>
+      <div class="row topspace">
+        <button class="primary big" id="backBtn">Back to start</button>
+      </div>
+    </div>
+  </div>
 
 <script>
-  const DEFAULT_SHEET_ID = 'YOUR_SHEET_ID_HERE';
+  // ===== YOUR GOOGLE SHEET =====
+  const HARDCODED_SHEET_ID = "1Nk7vOTqTiBJLPyn2jSlbxLb23RaWMmlaqnn7JRG1frk";
 
-  function populateVoiceSelector() {
-    // Your logic to populate voice selector
+  // ---------- Utilities ----------
+  function normalize(s) {
+    return (s ?? "")
+      .toString()
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, ""); // ignore spaces
   }
 
-  // You may have to call this function somewhere after declaring the variable
-  // to ensure it uses the updated logic.
-  populateVoiceSelector();
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function escapeHtml(s) {
+    return (s ?? "").toString()
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function csvUrl(sheetId, tabName) {
+    // Public sheet CSV export via gviz endpoint
+    const base = `https://docs.google.com/spreadsheets/d/${encodeURIComponent(sheetId)}/gviz/tq?tqx=out:csv`;
+    return `${base}&sheet=${encodeURIComponent(tabName)}`;
+  }
+
+  async function fetchCsvRows(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+    const text = await res.text();
+    return parseCsv(text);
+  }
+
+  // Minimal CSV parser that handles quoted cells
+  function parseCsv(text) {
+    const rows = [];
+    let row = [];
+    let cell = "";
+    let inQuotes = false;
+
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      const next = text[i + 1];
+
+      if (c === '"') {
+        if (inQuotes && next === '"') { cell += '"'; i++; }
+        else { inQuotes = !inQuotes; }
+      } else if (c === ',' && !inQuotes) {
+        row.push(cell); cell = "";
+      } else if ((c === '\n' || c === '\r') && !inQuotes) {
+        if (c === '\r' && next === '\n') i++;
+        row.push(cell);
+        if (row.length > 1 || row[0].trim() !== "") rows.push(row);
+        row = []; cell = "";
+      } else {
+        cell += c;
+      }
+    }
+
+    if (cell.length || row.length) {
+      row.push(cell);
+      if (row.length > 1 || row[0].trim() !== "") rows.push(row);
+    }
+    return rows;
+  }
+
+  // ---------- Speech ----------
+  function initVoices() {
+    return new Promise((resolve) => {
+      const tryResolve = () => {
+        const v = speechSynthesis.getVoices();
+        if (v && v.length) { resolve(); return true; }
+        return false;
+      };
+      if (tryResolve()) return;
+      speechSynthesis.onvoiceschanged = () => { tryResolve(); };
+      setTimeout(() => resolve(), 700); // iOS fallback
+    });
+  }
+
+  function speak(text) {
+    try {
+      speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      const voices = speechSynthesis.getVoices() || [];
+
+      // Detect environment: iOS/Mac vs Android/Chrome
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      const isMac = /Macintosh|MacIntel|MacPPC|Mac68K/.test(navigator.userAgent);
+      const isApple = isIOS || isMac;
+
+      let selectedVoice = null;
+
+      if (isApple) {
+        // iOS/Mac: Prefer Samantha, Karen, or other premium voices
+        selectedVoice = voices.find(v =>
+          (v.lang || "").toLowerCase().startsWith("en") &&
+          (v.name.includes("Samantha") || v.name.includes("Karen") || v.name.includes("Premium") || v.name.includes("Enhanced"))
+        );
+      } else {
+        // Android/Chrome: Prefer Google US English voices
+        selectedVoice = voices.find(v =>
+          (v.lang || "").toLowerCase().startsWith("en") &&
+          (v.name.includes("Google US English") || v.name.includes("Chrome"))
+        );
+      }
+
+      // Fallback: any US English voice
+      if (!selectedVoice) {
+        selectedVoice = voices.find(v => (v.lang || "").toLowerCase().startsWith("en-us"));
+      }
+
+      // Last resort: any English voice
+      if (!selectedVoice) {
+        selectedVoice = voices.find(v => (v.lang || "").toLowerCase().startsWith("en"));
+      }
+
+      utter.voice = selectedVoice || null;
+      utter.rate = 0.8; // Slower for clarity
+      utter.pitch = 1.0;
+      speechSynthesis.speak(utter);
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  // ---------- App State / Elements ----------
+  const setupCard = document.getElementById("setupCard");
+  const gameCard = document.getElementById("gameCard");
+  const resultsCard = document.getElementById("resultsCard");
+
+  const sheetIdEl = document.getElementById("sheetId");
+
+  const kidSelectEl = document.getElementById("kidSelect");
+  const weekSelectEl = document.getElementById("weekSelect");
+  const manualTabEl = document.getElementById("manualTab");
+  const modeSelectEl = document.getElementById("modeSelect");
+
+  const modePillEl = document.getElementById("modePill");
+  const progressTextEl = document.getElementById("progressText");
+
+  const repeatBtn = document.getElementById("repeatBtn");
+  const skipBtn = document.getElementById("skipBtn");
+  const submitBtn = document.getElementById("submitBtn");
+  const endBtn = document.getElementById("endBtn");
+  const answerEl = document.getElementById("answer");
+  const feedbackEl = document.getElementById("feedback");
+
+  const resultsSummaryEl = document.getElementById("resultsSummary");
+  const resultsDetailEl = document.getElementById("resultsDetail");
+  const backBtn = document.getElementById("backBtn");
+  const startBtn = document.getElementById("startBtn");
+
+  let indexRows = []; // from INDEX
+  let words = [];
+  let currentWord = null;
+
+  // quick mode
+  let quickIndex = 0;
+  let quickCorrect = 0;
+  let quickTotal = 0;
+  let quickMissed = [];
+
+  // practice_test mode
+  let ptStage = "practice"; // practice or test
+  let ptPracticeQueue = [];
+  let ptTestQueue = [];
+  let ptTestIndex = 0;
+  let ptTestCorrect = 0;
+  let ptTestMissed = [];
+
+  // mastery mode
+  let masteryQueue = [];
+  let masteryNeed = new Map(); // word -> streak count (needs 2)
+  let masteryAttempts = 0;
+
+  function show(el) { el.classList.remove("hidden"); }
+  function hide(el) { el.classList.add("hidden"); }
+
+  function setFeedback(kind, html) {
+    feedbackEl.classList.remove("good", "bad", "hidden");
+    feedbackEl.classList.add(kind === "good" ? "good" : "bad");
+    feedbackEl.innerHTML = html;
+  }
+
+  function clearFeedback() {
+    feedbackEl.classList.add("hidden");
+    feedbackEl.classList.remove("good", "bad");
+    feedbackEl.innerHTML = "";
+  }
+
+  function setModePill(mode) {
+    const map = {
+      quick: "Quick Quiz",
+      practice_test: "Practice → Test",
+      mastery: "Mastery Loop"
+    };
+    modePillEl.textContent = map[mode] || mode;
+  }
+
+  function getSelectedTab() {
+    const manual = manualTabEl.value.trim();
+    if (manual) return manual;
+    return weekSelectEl.value; // week dropdown holds actual tab name
+  }
+
+  function parseBool(v) {
+    const t = (v ?? "").toString().trim().toLowerCase();
+    return t === "true" || t === "yes" || t === "1";
+  }
+
+  async function loadIndex(sheetId) {
+    kidSelectEl.innerHTML = `<option value="">Loading…</option>`;
+    weekSelectEl.innerHTML = `<option value="">Select a kid first…</option>`;
+    weekSelectEl.disabled = true;
+    indexRows = [];
+
+    const rows = await fetchCsvRows(csvUrl(sheetId, "INDEX"));
+    const header = rows[0] || [];
+
+    const col = (name) => header.findIndex(h => normalize(h) === normalize(name));
+    const tabCol = col("tab");
+    const kidCol = col("kid");
+    const labelCol = col("week_label");
+    const dateCol = col("week_date");
+    const activeCol = col("active");
+
+    if ([tabCol, kidCol, labelCol, dateCol, activeCol].some(i => i === -1)) {
+      throw new Error("INDEX must have columns: tab, kid, week_label, week_date, active");
+    }
+
+    indexRows = rows.slice(1).map(r => ({
+      tab: (r[tabCol] ?? "").toString().trim(),
+      kid: (r[kidCol] ?? "").toString().trim(),
+      week_label: (r[labelCol] ?? "").toString().trim(),
+      week_date: (r[dateCol] ?? "").toString().trim(),
+      active: parseBool(r[activeCol]),
+    })).filter(x => x.tab && x.kid && x.week_label && x.week_date);
+
+    const kids = [...new Set(indexRows.filter(r => r.active).map(r => r.kid))]
+      .sort((a,b) => a.localeCompare(b));
+
+    kidSelectEl.innerHTML = `<option value="">Select a kid…</option>` +
+      kids.map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join("");
+
+    weekSelectEl.innerHTML = `<option value="">Select a kid first…</option>`;
+    weekSelectEl.disabled = true;
+  }
+
+  kidSelectEl.addEventListener("change", () => {
+    const kid = kidSelectEl.value;
+    if (!kid) {
+      weekSelectEl.innerHTML = `<option value="">Select a kid first…</option>`;
+      weekSelectEl.disabled = true;
+      return;
+    }
+
+    const weeks = indexRows
+      .filter(r => r.active && r.kid === kid)
+      // NEWEST FIRST:
+      .sort((a,b) => b.week_date.localeCompare(a.week_date));
+
+    weekSelectEl.innerHTML = `<option value="">Select a week…</option>` +
+      weeks.map(w => {
+        const label = `${w.week_label}`;
+        return `<option value="${escapeHtml(w.tab)}">${escapeHtml(label)}</option>`;
+      }).join("");
+
+    weekSelectEl.disabled = false;
+  });
+
+  async function loadWords(sheetId, tab) {
+    const rows = await fetchCsvRows(csvUrl(sheetId, tab));
+    if (!rows.length) throw new Error("No rows found");
+
+    const header = rows[0] || [];
+    const wordCol = header.findIndex(h => normalize(h) === "word");
+    if (wordCol === -1) throw new Error(`Missing 'word' header in tab: ${tab}`);
+
+    const w = rows.slice(1)
+      .map(r => (r[wordCol] ?? "").toString().trim())
+      .filter(Boolean);
+
+    if (!w.length) throw new Error(`No words found under 'word' in tab: ${tab}`);
+    return w;
+  }
+
+  function resetState() {
+    words = [];
+    currentWord = null;
+
+    quickIndex = 0; quickCorrect = 0; quickTotal = 0; quickMissed = [];
+
+    ptStage = "practice";
+    ptPracticeQueue = []; ptTestQueue = []; ptTestIndex = 0; ptTestCorrect = 0; ptTestMissed = [];
+
+    masteryQueue = [];
+    masteryNeed = new Map();
+    masteryAttempts = 0;
+  }
+
+  function startGameUI() {
+    hide(setupCard);
+    hide(resultsCard);
+    show(gameCard);
+    clearFeedback();
+    answerEl.value = "";
+    answerEl.focus();
+  }
+
+  function nextWord(mode) {
+    clearFeedback();
+    answerEl.value = "";
+    answerEl.focus();
+
+    if (mode === "quick") {
+      if (quickIndex >= words.length) return endGame();
+      currentWord = words[quickIndex++];
+      quickTotal++;
+      progressTextEl.textContent = `${quickIndex} / ${words.length}`;
+      speak(currentWord);
+      return;
+    }
+
+    if (mode === "practice_test") {
+      if (ptStage === "practice") {
+        if (ptPracticeQueue.length === 0) {
+          ptStage = "test";
+          ptTestQueue = shuffle(words);
+          ptTestIndex = 0;
+          setFeedback("good", `Practice complete. Starting <b>Test</b>…`);
+          setTimeout(() => nextWord(mode), 650);
+          return;
+        }
+        currentWord = ptPracticeQueue[0];
+        progressTextEl.textContent = `Practice: ${words.length - ptPracticeQueue.length + 1} / ${words.length}`;
+        speak(currentWord);
+        return;
+      } else {
+        if (ptTestIndex >= ptTestQueue.length) return endGame();
+        currentWord = ptTestQueue[ptTestIndex++];
+        progressTextEl.textContent = `Test: ${ptTestIndex} / ${ptTestQueue.length}`;
+        speak(currentWord);
+        return;
+      }
+    }
+
+    if (mode === "mastery") {
+      if (masteryQueue.length === 0) return endGame();
+      currentWord = masteryQueue.shift();
+      const mastered = [...masteryNeed.values()].filter(v => v >= 2).length;
+      progressTextEl.textContent = `Mastered: ${mastered} / ${words.length}`;
+      speak(currentWord);
+      return;
+    }
+  }
+
+  function endGame() {
+    hide(gameCard);
+    show(resultsCard);
+
+    const mode = modeSelectEl.value;
+
+    if (mode === "quick") {
+      const pct = quickTotal ? Math.round((quickCorrect / quickTotal) * 100) : 0;
+      resultsSummaryEl.innerHTML = `
+        <div><b>Score:</b> ${quickCorrect} / ${quickTotal} (${pct}%)</div>
+        <div class="muted small">Missed words listed below.</div>
+      `;
+      resultsDetailEl.innerHTML = quickMissed.length
+        ? `<ul class="list">${quickMissed.map(w => `<li>${escapeHtml(w)}</li>`).join("")}</ul>`
+        : `<div class="muted">No missed words 🎉</div>`;
+      return;
+    }
+
+    if (mode === "practice_test") {
+      const pct = ptTestQueue.length ? Math.round((ptTestCorrect / ptTestQueue.length) * 100) : 0;
+      resultsSummaryEl.innerHTML = `
+        <div><b>Test score:</b> ${ptTestCorrect} / ${ptTestQueue.length} (${pct}%)</div>
+        <div class="muted small">Words missed on the test are listed below.</div>
+      `;
+      resultsDetailEl.innerHTML = ptTestMissed.length
+        ? `<ul class="list">${ptTestMissed.map(w => `<li>${escapeHtml(w)}</li>`).join("")}</ul>`
+        : `<div class="muted">Perfect test 🎉</div>`;
+      return;
+    }
+
+    if (mode === "mastery") {
+      const mastered = [...masteryNeed.values()].filter(v => v >= 2).length;
+      resultsSummaryEl.innerHTML = `
+        <div><b>Mastered:</b> ${mastered} / ${words.length}</div>
+        <div><b>Attempts:</b> ${masteryAttempts}</div>
+        <div class="muted small">Words not fully mastered (need 2 correct in a row) are listed below.</div>
+      `;
+      const notMastered = words.filter(w => (masteryNeed.get(w) || 0) < 2);
+      resultsDetailEl.innerHTML = notMastered.length
+        ? `<ul class="list">${notMastered.map(w => `<li>${escapeHtml(w)} (streak: ${(masteryNeed.get(w) || 0)})</li>`).join("")}</ul>`
+        : `<div class="muted">All mastered 🎉</div>`;
+      return;
+    }
+  }
+
+  function checkAnswer(mode) {
+    if (!currentWord) return;
+
+    const typed = normalize(answerEl.value);
+    const target = normalize(currentWord);
+
+    if (mode === "practice_test" && ptStage === "test") {
+      // Test: don't reveal correctness per question; record and move on
+      if (typed === target && typed !== "") ptTestCorrect++;
+      else ptTestMissed.push(currentWord);
+      nextWord(mode);
+      return;
+    }
+
+    // Practice + Quick + Mastery: immediate feedback
+    if (typed === target && typed !== "") {
+      if (mode === "quick") {
+        quickCorrect++;
+        setFeedback("good", `✅ Correct`);
+        setTimeout(() => nextWord(mode), 500);
+        return;
+      }
+
+      if (mode === "practice_test" && ptStage === "practice") {
+        setFeedback("good", `✅ Correct`);
+        ptPracticeQueue.shift();
+        setTimeout(() => nextWord(mode), 500);
+        return;
+      }
+
+      if (mode === "mastery") {
+        masteryAttempts++;
+        const streak = (masteryNeed.get(currentWord) || 0) + 1;
+        masteryNeed.set(currentWord, streak);
+        setFeedback("good", `✅ Correct (streak: ${streak}/2)`);
+        if (streak < 2) masteryQueue.push(currentWord);
+        setTimeout(() => nextWord(mode), 550);
+        return;
+      }
+    } else {
+      if (mode === "quick") {
+        quickMissed.push(currentWord);
+        setFeedback("bad", `❌ Incorrect. The correct spelling is: <b>${escapeHtml(currentWord)}</b>`);
+        setTimeout(() => nextWord(mode), 900);
+        return;
+      }
+
+      if (mode === "practice_test" && ptStage === "practice") {
+        setFeedback("bad", `❌ Not quite. Correct spelling: <b>${escapeHtml(currentWord)}</b><br/><span class="muted small">Try it again.</span>`);
+        speak(currentWord);
+        return;
+      }
+
+      if (mode === "mastery") {
+        masteryAttempts++;
+        masteryNeed.set(currentWord, 0);
+        setFeedback("bad", `❌ Incorrect. Correct spelling: <b>${escapeHtml(currentWord)}</b><br/><span class="muted small">This word will come back again.</span>`);
+        masteryQueue.push(currentWord);
+        setTimeout(() => nextWord(mode), 900);
+        return;
+      }
+    }
+  }
+
+  function skipWord() {
+    const mode = modeSelectEl.value;
+    if (!currentWord) return;
+
+    if (mode === "practice_test" && ptStage === "test") {
+      ptTestMissed.push(currentWord);
+      nextWord(mode);
+      return;
+    }
+
+    if (mode === "practice_test" && ptStage === "practice") {
+      ptPracticeQueue.push(ptPracticeQueue.shift());
+      nextWord(mode);
+      return;
+    }
+
+    if (mode === "mastery") {
+      masteryQueue.push(currentWord);
+      nextWord(mode);
+      return;
+    }
+
+    // quick mode: just advance
+    nextWord(mode);
+  }
+
+  // ---------- Event Wiring ----------
+  sheetIdEl.addEventListener("change", () => {
+    const id = sheetIdEl.value.trim();
+    if (!id) return;
+
+    loadIndex(id).catch(() => {
+      kidSelectEl.innerHTML = `<option value="">(Could not load INDEX — use Manual tab override)</option>`;
+      weekSelectEl.innerHTML = `<option value="">(Could not load INDEX)</option>`;
+      weekSelectEl.disabled = true;
+    });
+  });
+
+  document.getElementById("startBtn").addEventListener("click", async () => {
+    const sheetId = sheetIdEl.value.trim();
+    const tab = getSelectedTab();
+    const mode = modeSelectEl.value;
+
+    if (!sheetId) { alert("Please paste the Google Sheet ID."); return; }
+    if (!tab) { alert("Please select a week (or type a manual tab name)."); return; }
+
+    startBtn.disabled = true;
+    startBtn.textContent = "Loading…";
+
+    try {
+      await initVoices(); // iOS: needs a user gesture; Start button provides it.
+      resetState();
+      setModePill(mode);
+
+      const loadedWords = await loadWords(sheetId, tab);
+      words = shuffle(loadedWords);
+
+      if (mode === "quick") {
+        quickIndex = 0;
+      } else if (mode === "practice_test") {
+        ptStage = "practice";
+        ptPracticeQueue = words.slice();
+      } else if (mode === "mastery") {
+        masteryQueue = words.slice();
+        words.forEach(w => masteryNeed.set(w, 0));
+      }
+
+      startGameUI();
+      nextWord(mode);
+    } catch (e) {
+      alert(
+        `Could not start.\n\n${e.message}\n\nCheck:\n` +
+        `- Sheet is public\n` +
+        `- There is an INDEX tab with the right headers\n` +
+        `- The selected vocab tab exists\n` +
+        `- Vocab tab has column header 'word'`
+      );
+      show(setupCard);
+      hide(gameCard);
+      hide(resultsCard);
+    } finally {
+      startBtn.disabled = false;
+      startBtn.textContent = "Start";
+    }
+  });
+
+  repeatBtn.addEventListener("click", () => { if (currentWord) speak(currentWord); });
+  document.getElementById("skipBtn").addEventListener("click", () => skipWord());
+  document.getElementById("submitBtn").addEventListener("click", () => checkAnswer(modeSelectEl.value));
+  document.getElementById("endBtn").addEventListener("click", () => endGame());
+
+  backBtn.addEventListener("click", () => {
+    hide(resultsCard);
+    hide(gameCard);
+    show(setupCard);
+    clearFeedback();
+  });
+
+  answerEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") submitBtn.click();
+  });
+
+  // Debug: show available voices
+  document.getElementById("showVoicesBtn").addEventListener("click", async () => {
+    await initVoices();
+    const voices = speechSynthesis.getVoices() || [];
+    const voicesList = document.getElementById("voicesList");
+
+    if (voices.length === 0) {
+      voicesList.innerHTML = "No voices found";
+      return;
+    }
+
+    const englishVoices = voices.filter(v => (v.lang || "").toLowerCase().startsWith("en"));
+    voicesList.innerHTML = `<div style="max-height:300px;overflow:auto;"><b>English voices (${englishVoices.length}):</b><ul class="list">` +
+      englishVoices.map(v => `<li><b>${escapeHtml(v.name)}</b> (${escapeHtml(v.lang)}) ${v.localService ? '[Local]' : '[Remote]'}</li>`).join("") +
+      `</ul></div>`;
+  });
+
+  // Bootstrap: hardcode sheet + load INDEX after everything is defined
+document.addEventListener("DOMContentLoaded", () => {
+  sheetIdEl.value = HARDCODED_SHEET_ID;
+
+  loadIndex(HARDCODED_SHEET_ID).catch((e) => {
+    kidSelectEl.innerHTML = `<option value="">INDEX load failed</option>`;
+    weekSelectEl.innerHTML = `<option value="">Check sharing / INDEX</option>`;
+    weekSelectEl.disabled = true;
+    alert("Could not load INDEX: " + e.message);
+  });
+});
+
 </script>
+</body>
+</html>
