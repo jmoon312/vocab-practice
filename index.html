@@ -77,6 +77,11 @@
         <option value="mastery">Mastery Loop</option>
       </select>
 
+      <label>Voice</label>
+      <select id="voiceSelect">
+        <option value="">Loading voices…</option>
+      </select>
+
       <div class="row topspace">
         <button class="primary big" id="startBtn">Start</button>
       </div>
@@ -240,44 +245,95 @@
     });
   }
 
+  function populateVoiceSelector() {
+    const voiceSelectEl = document.getElementById("voiceSelect");
+    const voices = speechSynthesis.getVoices() || [];
+
+    // Detect environment: iOS/Mac vs Android/Chrome
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const isMac = /Macintosh|MacIntel|MacPPC|Mac68K/.test(navigator.userAgent);
+    const isApple = isIOS || isMac;
+
+    // Filter to English voices only
+    const englishVoices = voices.filter(v => (v.lang || "").toLowerCase().startsWith("en"));
+
+    // Further filter based on environment
+    let filteredVoices;
+    if (isApple) {
+      // iOS/Mac: Show premium voices first, then others
+      const premiumVoices = englishVoices.filter(v =>
+        v.name.includes("Samantha") || v.name.includes("Karen") ||
+        v.name.includes("Premium") || v.name.includes("Enhanced")
+      );
+      const otherVoices = englishVoices.filter(v =>
+        !v.name.includes("Samantha") && !v.name.includes("Karen") &&
+        !v.name.includes("Premium") && !v.name.includes("Enhanced")
+      );
+      filteredVoices = [...premiumVoices, ...otherVoices];
+    } else {
+      // Android/Chrome: Show Google voices first, then others
+      const googleVoices = englishVoices.filter(v =>
+        v.name.includes("Google") || v.name.includes("Chrome")
+      );
+      const otherVoices = englishVoices.filter(v =>
+        !v.name.includes("Google") && !v.name.includes("Chrome")
+      );
+      filteredVoices = [...googleVoices, ...otherVoices];
+    }
+
+    if (filteredVoices.length === 0) {
+      voiceSelectEl.innerHTML = `<option value="">No English voices available</option>`;
+      return;
+    }
+
+    // Populate dropdown
+    voiceSelectEl.innerHTML = filteredVoices.map((v, idx) =>
+      `<option value="${idx}">${escapeHtml(v.name)} (${escapeHtml(v.lang)})</option>`
+    ).join("");
+
+    // Select the first voice by default
+    voiceSelectEl.selectedIndex = 0;
+  }
+
   function speak(text) {
     try {
       speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(text);
       const voices = speechSynthesis.getVoices() || [];
+      const voiceSelectEl = document.getElementById("voiceSelect");
 
-      // Detect environment: iOS/Mac vs Android/Chrome
+      // Get selected voice from dropdown
+      const selectedIndex = parseInt(voiceSelectEl.value, 10);
+
+      // Filter English voices in the same order as populateVoiceSelector
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
       const isMac = /Macintosh|MacIntel|MacPPC|Mac68K/.test(navigator.userAgent);
       const isApple = isIOS || isMac;
 
-      let selectedVoice = null;
+      const englishVoices = voices.filter(v => (v.lang || "").toLowerCase().startsWith("en"));
 
+      let filteredVoices;
       if (isApple) {
-        // iOS/Mac: Prefer Samantha, Karen, or other premium voices
-        selectedVoice = voices.find(v =>
-          (v.lang || "").toLowerCase().startsWith("en") &&
-          (v.name.includes("Samantha") || v.name.includes("Karen") || v.name.includes("Premium") || v.name.includes("Enhanced"))
+        const premiumVoices = englishVoices.filter(v =>
+          v.name.includes("Samantha") || v.name.includes("Karen") ||
+          v.name.includes("Premium") || v.name.includes("Enhanced")
         );
+        const otherVoices = englishVoices.filter(v =>
+          !v.name.includes("Samantha") && !v.name.includes("Karen") &&
+          !v.name.includes("Premium") && !v.name.includes("Enhanced")
+        );
+        filteredVoices = [...premiumVoices, ...otherVoices];
       } else {
-        // Android/Chrome: Prefer Google US English voices
-        selectedVoice = voices.find(v =>
-          (v.lang || "").toLowerCase().startsWith("en") &&
-          (v.name.includes("Google US English") || v.name.includes("Chrome"))
+        const googleVoices = englishVoices.filter(v =>
+          v.name.includes("Google") || v.name.includes("Chrome")
         );
+        const otherVoices = englishVoices.filter(v =>
+          !v.name.includes("Google") && !v.name.includes("Chrome")
+        );
+        filteredVoices = [...googleVoices, ...otherVoices];
       }
 
-      // Fallback: any US English voice
-      if (!selectedVoice) {
-        selectedVoice = voices.find(v => (v.lang || "").toLowerCase().startsWith("en-us"));
-      }
-
-      // Last resort: any English voice
-      if (!selectedVoice) {
-        selectedVoice = voices.find(v => (v.lang || "").toLowerCase().startsWith("en"));
-      }
-
-      utter.voice = selectedVoice || null;
+      utter.voice = filteredVoices[selectedIndex] || filteredVoices[0] || null;
       utter.rate = 0.8; // Slower for clarity
       utter.pitch = 1.0;
       speechSynthesis.speak(utter);
@@ -746,8 +802,17 @@
   });
 
   // Bootstrap: hardcode sheet + load INDEX after everything is defined
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   sheetIdEl.value = HARDCODED_SHEET_ID;
+
+  // Initialize and populate voices
+  await initVoices();
+  populateVoiceSelector();
+
+  // Also populate on voiceschanged event (for some browsers)
+  speechSynthesis.onvoiceschanged = () => {
+    populateVoiceSelector();
+  };
 
   loadIndex(HARDCODED_SHEET_ID).catch((e) => {
     kidSelectEl.innerHTML = `<option value="">INDEX load failed</option>`;
