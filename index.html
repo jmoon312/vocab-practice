@@ -240,7 +240,7 @@
       // Prefer high-quality natural voices (iOS/Mac: Samantha, Karen, etc.)
       const preferred = voices.find(v =>
         (v.lang || "").toLowerCase().startsWith("en") &&
-        (v.name.includes("Samantha") || v.name.includes("Karen") || v.name.includes("Premium") || v.name.includes("Enhanced"))
+        (v.name.includes("Samantha") || v.name.includes("Fred") || v.name.includes("Karen") || v.name.includes("Premium") || v.name.includes("Enhanced"))
       );
 
       // Fallback: any US English voice
@@ -250,7 +250,7 @@
       const anyEnglish = voices.find(v => (v.lang || "").toLowerCase().startsWith("en"));
 
       utter.voice = preferred || usEnglish || anyEnglish || null;
-      utter.rate = 0.9; // Slightly slower for clarity
+      utter.rate = 0.8; // Slightly slower for clarity
       utter.pitch = 1.0;
       speechSynthesis.speak(utter);
     } catch (e) {
