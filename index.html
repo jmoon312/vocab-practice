@@ -47,8 +47,9 @@
         Pick a kid, a week (from <b>INDEX</b>), and a mode. Tap <b>Start</b> to unlock audio on iPhone/iPad.
       </div>
 
-      <label>Google Sheet ID (from the URL)</label>
-      <input id="sheetId" placeholder="e.g., 1AbCDefGhIJkLmNopQRsTUVwxyz..." />
+    <!-- Sheet ID hidden for kid mode -->
+    <input id="sheetId" type="hidden" />
+
 
       <div class="row2">
         <div>
@@ -140,6 +141,9 @@
   </div>
 
 <script>
+  // ===== YOUR GOOGLE SHEET =====
+  const HARDCODED_SHEET_ID = "1Nk7vOTqTiBJLPyn2jSlbxLb23RaWMmlaqnn7JRG1frk";
+
   // ---------- Utilities ----------
   function normalize(s) {
     return (s ?? "")
@@ -248,6 +252,10 @@
   const resultsCard = document.getElementById("resultsCard");
 
   const sheetIdEl = document.getElementById("sheetId");
+  // Pre-fill and auto-load INDEX
+  sheetIdEl.value = HARDCODED_SHEET_ID;
+  loadIndex(HARDCODED_SHEET_ID).catch(() => {});
+
   const kidSelectEl = document.getElementById("kidSelect");
   const weekSelectEl = document.getElementById("weekSelect");
   const manualTabEl = document.getElementById("manualTab");
